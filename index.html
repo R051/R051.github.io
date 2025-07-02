@@ -2,36 +2,431 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>我的记录小站</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人效率面板</title>
     <style>
-        body { font-family: sans-serif; line-height: 1.6; padding: 20px; }
-        h1 { color: #333; }
-        .note { background-color: #f9f9f9; border-left: 5px solid #ccc; padding: 10px; margin-top: 20px; }
+        /* --- 全局样式 --- */
+        :root {
+            --bg-color: #f4f7f9;
+            --main-color: #ffffff;
+            --primary-color: #4a90e2;
+            --secondary-color: #50e3c2;
+            --accent-color: #f5a623;
+            --text-color: #333333;
+            --border-color: #e0e0e0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* --- 密码访问层 --- */
+        #password-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        #password-box {
+            background-color: var(--main-color);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px var(--shadow-color);
+            text-align: center;
+        }
+        #password-input {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            margin: 10px 0;
+            width: 200px;
+        }
+        #password-submit {
+            padding: 10px 20px;
+            border: none;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* --- 主内容区 --- */
+        #main-content {
+            display: none; /* 默认隐藏 */
+            max-width: 1200px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+        }
+        .widget {
+            background-color: var(--main-color);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px var(--shadow-color);
+            display: flex;
+            flex-direction: column;
+        }
+        .widget h2 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        /* --- 番茄钟 --- */
+        #pomodoro-timer {
+            font-size: 4rem;
+            text-align: center;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .pomo-buttons button {
+            padding: 10px 15px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: var(--secondary-color);
+            color: white;
+            font-size: 1rem;
+        }
+        .pomo-buttons button.active {
+            background-color: var(--primary-color);
+        }
+
+        /* --- 待办清单 --- */
+        #todo-input {
+            width: calc(100% - 22px);
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        #todo-list {
+            list-style-type: none;
+            padding: 0;
+            flex-grow: 1;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        #todo-list li {
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+        #todo-list li.completed span {
+            text-decoration: line-through;
+            color: #999;
+        }
+        .delete-btn {
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        /* --- 记账本 --- */
+        #accounting-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        #accounting-form input {
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+        }
+        #item-desc { flex-grow: 1; }
+        #item-amount { width: 80px; }
+        #add-transaction-btn {
+            border: none;
+            background-color: var(--accent-color);
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            padding: 0 15px;
+        }
+        #transaction-list {
+            list-style-type: none;
+            padding: 0;
+            flex-grow: 1;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        #transaction-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            border-bottom: 1px dotted var(--border-color);
+        }
+        .expense { color: #d0021b; }
+        .income { color: #7ed321; }
+        #balance {
+            text-align: right;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
-    <h1>我的个人记录页面</h1>
-    <p>这里是我用来存放一些笔记和想法的地方。</p>
 
-    <div class="note">
-        <h2>待办事项</h2>
-        <ul id="todo-list">
-            <li>学习 HTML</li>
-            <li>学习 CSS</li>
-            <li>学习 JavaScript</li>
-        </ul>
+<div id="password-overlay">
+    <div id="password-box">
+        <h3>请输入访问密码</h3>
+        <input type="password" id="password-input" autofocus>
+        <br>
+        <button id="password-submit">进入</button>
+    </div>
+</div>
+
+<div id="main-content">
+    
+    <div class="widget">
+        <h2>番茄时间</h2>
+        <div id="pomodoro-timer">25:00</div>
+        <div class="pomo-buttons" style="text-align:center;">
+            <button id="start-pomo">开始</button>
+            <button id="pause-pomo">暂停</button>
+            <button id="reset-pomo">重置</button>
+        </div>
+        <div class="pomo-buttons" style="text-align:center; margin-top: 10px;">
+            <button id="set-work" class="active">工作 (25分钟)</button>
+            <button id="set-break">休息 (5分钟)</button>
+        </div>
     </div>
 
-    <button onclick="addTodo()">添加一个新任务</button>
+    <div class="widget">
+        <h2>待办清单 (今日事)</h2>
+        <input type="text" id="todo-input" placeholder="添加新任务后按回车...">
+        <ul id="todo-list"></ul>
+    </div>
 
-    <script>
-        // 一个非常简单的“功能”：点击按钮添加一条任务
-        function addTodo() {
-            const todoList = document.getElementById('todo-list');
-            const newItem = document.createElement('li');
-            newItem.textContent = '新任务 - ' + new Date().toLocaleTimeString();
-            todoList.appendChild(newItem);
+    <div class="widget">
+        <h2>迷你记账本</h2>
+        <div id="accounting-form">
+            <input type="text" id="item-desc" placeholder="项目说明 (如: 咖啡)">
+            <input type="number" id="item-amount" placeholder="金额">
+            <button id="add-transaction-btn">记账</button>
+        </div>
+        <ul id="transaction-list"></ul>
+        <div id="balance">总计: <span>0.00</span></div>
+    </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- 访问密码模块 ---
+    const passwordOverlay = document.getElementById('password-overlay');
+    const mainContent = document.getElementById('main-content');
+    const passwordInput = document.getElementById('password-input');
+    const passwordSubmit = document.getElementById('password-submit');
+    
+    // 在这里修改你的密码！
+    const CORRECT_PASSWORD = "123"; 
+
+    function checkPassword() {
+        if (passwordInput.value === CORRECT_PASSWORD) {
+            passwordOverlay.style.display = 'none';
+            mainContent.style.display = 'grid'; // 使用 grid 布局
+        } else {
+            alert('密码错误!');
+            passwordInput.value = '';
         }
-    </script>
+    }
+    passwordSubmit.addEventListener('click', checkPassword);
+    passwordInput.addEventListener('keyup', (event) => {
+        if (event.key === 'Enter') {
+            checkPassword();
+        }
+    });
+
+    // --- 番茄钟模块 ---
+    const timerDisplay = document.getElementById('pomodoro-timer');
+    const startBtn = document.getElementById('start-pomo');
+    const pauseBtn = document.getElementById('pause-pomo');
+    const resetBtn = document.getElementById('reset-pomo');
+    const workBtn = document.getElementById('set-work');
+    const breakBtn = document.getElementById('set-break');
+
+    let timer;
+    let timeLeft = 25 * 60; // 默认25分钟
+    let isPaused = true;
+    let currentMode = 'work';
+
+    function updateDisplay() {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function startTimer() {
+        if (isPaused) {
+            isPaused = false;
+            timer = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateDisplay();
+                } else {
+                    clearInterval(timer);
+                    alert(`${currentMode === 'work' ? '工作' : '休息'}时间结束！`);
+                    isPaused = true;
+                }
+            }, 1000);
+        }
+    }
+
+    function pauseTimer() {
+        isPaused = true;
+        clearInterval(timer);
+    }
+
+    function resetTimer() {
+        pauseTimer();
+        timeLeft = (currentMode === 'work' ? 25 : 5) * 60;
+        updateDisplay();
+    }
+    
+    startBtn.addEventListener('click', startTimer);
+    pauseBtn.addEventListener('click', pauseTimer);
+    resetBtn.addEventListener('click', resetTimer);
+
+    workBtn.addEventListener('click', () => {
+        currentMode = 'work';
+        workBtn.classList.add('active');
+        breakBtn.classList.remove('active');
+        resetTimer();
+    });
+
+    breakBtn.addEventListener('click', () => {
+        currentMode = 'break';
+        breakBtn.classList.add('active');
+        workBtn.classList.remove('active');
+        resetTimer();
+    });
+
+    // --- 待办清单模块 ---
+    const todoInput = document.getElementById('todo-input');
+    const todoList = document.getElementById('todo-list');
+    let todos = JSON.parse(localStorage.getItem('todos')) || [];
+
+    function saveTodos() {
+        localStorage.setItem('todos', JSON.stringify(todos));
+    }
+
+    function renderTodos() {
+        todoList.innerHTML = '';
+        todos.forEach((todo, index) => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="${todo.completed ? 'completed' : ''}">${todo.text}</span><button class="delete-btn" data-index="${index}">X</button>`;
+            if (todo.completed) li.classList.add('completed');
+            
+            li.querySelector('span').addEventListener('click', () => {
+                todos[index].completed = !todos[index].completed;
+                saveTodos();
+                renderTodos();
+            });
+
+            li.querySelector('.delete-btn').addEventListener('click', (e) => {
+                e.stopPropagation(); // 防止触发 li 的点击事件
+                todos.splice(index, 1);
+                saveTodos();
+                renderTodos();
+            });
+            todoList.appendChild(li);
+        });
+    }
+
+    todoInput.addEventListener('keyup', (event) => {
+        if (event.key === 'Enter' && todoInput.value.trim() !== '') {
+            todos.push({ text: todoInput.value.trim(), completed: false });
+            todoInput.value = '';
+            saveTodos();
+            renderTodos();
+        }
+    });
+
+    // --- 记账本模块 ---
+    const itemDescInput = document.getElementById('item-desc');
+    const itemAmountInput = document.getElementById('item-amount');
+    const addTransactionBtn = document.getElementById('add-transaction-btn');
+    const transactionList = document.getElementById('transaction-list');
+    const balanceDisplay = document.querySelector('#balance span');
+    let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+
+    function saveTransactions() {
+        localStorage.setItem('transactions', JSON.stringify(transactions));
+    }
+
+    function renderTransactions() {
+        transactionList.innerHTML = '';
+        let total = 0;
+        transactions.forEach((tx, index) => {
+            const li = document.createElement('li');
+            const amount = parseFloat(tx.amount);
+            li.innerHTML = `<span>${tx.desc}</span><span class="${amount < 0 ? 'expense' : 'income'}">${amount.toFixed(2)}</span>`;
+            transactionList.appendChild(li);
+            total += amount;
+        });
+        balanceDisplay.textContent = total.toFixed(2);
+        balanceDisplay.parentElement.className = total < 0 ? 'expense' : 'income';
+    }
+    
+    function addTransaction() {
+        const desc = itemDescInput.value.trim();
+        const amount = parseFloat(itemAmountInput.value.trim());
+
+        if (desc === '' || isNaN(amount)) {
+            alert('请填写完整的项目说明和金额！');
+            return;
+        }
+
+        transactions.push({ desc, amount });
+        itemDescInput.value = '';
+        itemAmountInput.value = '';
+        saveTransactions();
+        renderTransactions();
+    }
+
+    addTransactionBtn.addEventListener('click', addTransaction);
+    itemAmountInput.addEventListener('keyup', (event) => {
+        if (event.key === 'Enter') {
+            addTransaction();
+        }
+    });
+
+    // --- 初始加载 ---
+    updateDisplay();
+    renderTodos();
+    renderTransactions();
+});
+</script>
+
 </body>
 </html>
